@@ -3,7 +3,7 @@ package com.aegis.kotlindemo.model.annotator
 import org.springframework.data.mongodb.core.mapping.Document
 
 @Document("doc")
-data class Doc(val id: String? = null, val moduleId: String, val status: String, val content: String)
+data class Doc(val id: String? = null, val moduleId: String, val status: String, val content: String, var moduleName: String? = null)
 
 // status 0 未标注 1 已标注 2 标注中
 val doc = arrayListOf(

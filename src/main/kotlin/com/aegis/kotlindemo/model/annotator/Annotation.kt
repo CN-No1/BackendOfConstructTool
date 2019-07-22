@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document
 @Document(collection = "annotation")
 data class Annotation(@Id val id: String? = null, val docId: String, val positionList: ArrayList<Position>)
 
-data class Position(val entityId: String, val startOffset:Int, val endOffset: Int)
+data class Position(val entityId: String, val startOffset:Int, val endOffset: Int, val entity: String? = null)
 
 val annotation = arrayListOf(
         Annotation("1","2", arrayListOf(
