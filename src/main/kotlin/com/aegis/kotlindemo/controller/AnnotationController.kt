@@ -2,6 +2,8 @@ package com.aegis.kotlindemo.controller
 
 import com.aegis.kotlindemo.model.annotator.Annotation
 import com.aegis.kotlindemo.model.annotator.Doc
+import com.aegis.kotlindemo.model.entity.EntityClass
+import com.aegis.kotlindemo.model.entity.EntityClassNode
 import com.aegis.kotlindemo.model.entity.Module
 import com.aegis.kotlindemo.model.result.Result
 import io.swagger.annotations.ApiOperation
@@ -22,7 +24,28 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
     fun getAnnotation(id: String): Result<Annotation?> {
         val res = mongoTemplate.findOne(
                 Query.query(Criteria.where("docId").`is`(id)), Annotation::class.java)
+        if (res != null) {
+            for (item in res.positionList) {
+                val criteria = Criteria()
+                criteria.and("entityList").elemMatch(Criteria.where("_id").`is`(item.entityId))
+                val temp = mongoTemplate.findOne(Query.query(criteria), EntityClass::class.java)!!.entityList
+                item.entity = findLabel(temp, item.entityId)
+            }
+        }
         return Result<Annotation?>(0).setData(res)
+    }
+
+    fun findLabel(list: ArrayList<EntityClassNode>?, id: String): String {
+        var res = ""
+        var children: ArrayList<EntityClassNode>? = arrayListOf()
+        if (list != null) {
+            for (item in list) {
+                if (item.id == id) {
+                    res = item.label
+                } else children = item.children
+            }
+        }
+        return if (!res.isBlank()) res else findLabel(children, id)
     }
 
     @ApiOperation("根据id查询文本")
@@ -55,6 +78,9 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val query = Query.query(Criteria.where("docId").`is`(annotation.docId))
         val update = Update.update("positionList", annotation.positionList)
         mongoTemplate.upsert(query, update, Annotation::class.java)
+        val queryDocById = Query.query(Criteria.where("_id").`is`(annotation.docId))
+        val updateDocStatus = Update.update("status", "1")
+        mongoTemplate.upsert(queryDocById, updateDocStatus, Doc::class.java)
         return Result(0, "success")
     }
 }
