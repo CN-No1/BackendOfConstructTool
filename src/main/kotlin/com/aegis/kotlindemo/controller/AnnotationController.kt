@@ -6,6 +6,7 @@ import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.entity.EntityClassNode
 import com.aegis.kotlindemo.model.entity.Module
 import com.aegis.kotlindemo.model.result.Result
+import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
@@ -14,6 +15,8 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
 import org.springframework.web.bind.annotation.*
+import java.io.File
+import java.lang.Exception
 
 @RestController
 @RequestMapping("annotation")
@@ -24,28 +27,28 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
     fun getAnnotation(id: String): Result<Annotation?> {
         val res = mongoTemplate.findOne(
                 Query.query(Criteria.where("docId").`is`(id)), Annotation::class.java)
-        if (res != null) {
-            for (item in res.positionList) {
-                val criteria = Criteria()
-                criteria.and("entityList").elemMatch(Criteria.where("_id").`is`(item.entityId))
-                val temp = mongoTemplate.findOne(Query.query(criteria), EntityClass::class.java)!!.entityList
-                item.entity = findLabel(temp, item.entityId)
-            }
-        }
+//        if (res != null) {
+//            for (item in res.positionList) {
+//                val criteria = Criteria()
+//                criteria.and("entityList").elemMatch(Criteria.where("id").`is`(item.entityId))
+//                val temp = mongoTemplate.findOne(Query.query(criteria), EntityClass::class.java)!!.entityList
+//                item.entity = findLabel(temp, item.entityId)
+//            }
+//        }
         return Result<Annotation?>(0).setData(res)
     }
 
     fun findLabel(list: ArrayList<EntityClassNode>?, id: String): String {
         var res = ""
-        var children: ArrayList<EntityClassNode>? = arrayListOf()
         if (list != null) {
             for (item in list) {
                 if (item.id == id) {
                     res = item.label
-                } else children = item.children
+                    break
+                } else findLabel(item.children,id)
             }
         }
-        return if (!res.isBlank()) res else findLabel(children, id)
+        return res
     }
 
     @ApiOperation("根据id查询文本")
@@ -79,8 +82,42 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val update = Update.update("positionList", annotation.positionList)
         mongoTemplate.upsert(query, update, Annotation::class.java)
         val queryDocById = Query.query(Criteria.where("_id").`is`(annotation.docId))
-        val updateDocStatus = Update.update("status", "1")
+        val flag = if (annotation.positionList.isNotEmpty()) "1" else "0"
+        val updateDocStatus = Update.update("status", flag)
         mongoTemplate.upsert(queryDocById, updateDocStatus, Doc::class.java)
         return Result(0, "success")
+    }
+
+    @ApiOperation("新增文档")
+    @PostMapping("createDoc")
+    fun createDoc(@RequestBody doc: Doc): Result<Int>?{
+        mongoTemplate.insert(doc,"doc")
+        return Result(0, "success")
+    }
+
+    @ApiOperation("删除文档")
+    @DeleteMapping("deleteDoc")
+    fun deleteDoc(id: String): Result<Int?>{
+        try {
+            mongoTemplate.remove(Query.query(Criteria.where("id").`is`(id)),Doc::class.java)
+            mongoTemplate.remove(Query.query(Criteria.where("docId").`is`(id)),Annotation::class.java)
+            return Result(0)
+        } catch (e:Exception){
+            return Result(500,e.toString())
+        }
+    }
+
+    @ApiOperation("解析Json文件")
+    @PostMapping("parseJson")
+    fun parseJson() {
+        val fileName = """D:\traffic_nlu_data.json"""
+        val file = File(fileName)
+        val content = file.readText()
+        val jsonObject = JsonParser().parse(content).asJsonObject.get("qa_nlu_data").asJsonObject.get("common_examples").asJsonArray
+        jsonObject.map {
+            val text = it.asJsonObject.get("text").asString
+            val doc = Doc(null, "5d2fe2f28eb1330dcc8f46bd", "0", text)
+            mongoTemplate.insert(doc,"doc")
+        }
     }
 }
