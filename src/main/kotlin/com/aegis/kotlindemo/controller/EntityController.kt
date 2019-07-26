@@ -15,10 +15,10 @@ class EntityController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("查询实体类")
     @GetMapping("getClasses")
-    fun getClasses(id: String): Result<EntityClass?> {
-        val res = mongoTemplate.findOne(
+    fun getClasses(id: String): Result<ArrayList<EntityClass>?> {
+        val res = mongoTemplate.find(
                 Query.query(Criteria.where("moduleId").`is`(id)), EntityClass::class.java)
-        return Result<EntityClass?>(0).setData(res)
+        return Result<ArrayList<EntityClass>?>(0).setData(ArrayList(res))
     }
 
     @ApiOperation("查询模块")
@@ -54,10 +54,16 @@ class EntityController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("新增或修改实体类")
     @PostMapping("creatOrUpdateClass")
-    fun creatOrUpdateClass(@RequestBody entityClass: EntityClass): Result<Int?> {
-        val query = Query.query(Criteria.where("moduleId").`is`(entityClass.moduleId))
-        val update = Update.update("entityList", entityClass.entityList)
-        mongoTemplate.upsert(query, update, EntityClass::class.java)
+    fun creatOrUpdateClass(@RequestBody entityClass: List<EntityClass>): Result<Int?> {
+        for (it in entityClass) {
+            val query = Query.query(Criteria.where("id").`is`(it.id))
+            val update = Update()
+            update.set("label", it.label)
+            update.set("moduleId", it.moduleId)
+            update.set("pid", it.pid)
+            update.set("description", it.description)
+            mongoTemplate.upsert(query, update, EntityClass::class.java)
+        }
         return Result(0, "success")
     }
 

@@ -3,7 +3,6 @@ package com.aegis.kotlindemo.controller
 import com.aegis.kotlindemo.model.annotator.Annotation
 import com.aegis.kotlindemo.model.annotator.Doc
 import com.aegis.kotlindemo.model.entity.EntityClass
-import com.aegis.kotlindemo.model.entity.EntityClassNode
 import com.aegis.kotlindemo.model.entity.Module
 import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
@@ -37,19 +36,16 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 //        }
         return Result<Annotation?>(0).setData(res)
     }
-
-    fun findLabel(list: ArrayList<EntityClassNode>?, id: String): String {
-        var res = ""
-        if (list != null) {
-            for (item in list) {
-                if (item.id == id) {
-                    res = item.label
-                    break
-                } else findLabel(item.children,id)
-            }
-        }
-        return res
-    }
+//
+//    fun findLabel(list: ArrayList<EntityClassNode>?, id: String): String {
+//        if (list != null) {
+//            for (item in list) {
+//                if (item.id == id) {
+//                    return item.label
+//                } else return findLabel(item.children,id)
+//            }
+//        }
+//    }
 
     @ApiOperation("根据id查询文本")
     @GetMapping("getDocById")
@@ -90,20 +86,20 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("新增文档")
     @PostMapping("createDoc")
-    fun createDoc(@RequestBody doc: Doc): Result<Int>?{
-        mongoTemplate.insert(doc,"doc")
+    fun createDoc(@RequestBody doc: Doc): Result<Int>? {
+        mongoTemplate.insert(doc, "doc")
         return Result(0, "success")
     }
 
     @ApiOperation("删除文档")
     @DeleteMapping("deleteDoc")
-    fun deleteDoc(id: String): Result<Int?>{
-        try {
-            mongoTemplate.remove(Query.query(Criteria.where("id").`is`(id)),Doc::class.java)
-            mongoTemplate.remove(Query.query(Criteria.where("docId").`is`(id)),Annotation::class.java)
-            return Result(0)
-        } catch (e:Exception){
-            return Result(500,e.toString())
+    fun deleteDoc(id: String): Result<Int?> {
+        return try {
+            mongoTemplate.remove(Query.query(Criteria.where("id").`is`(id)), Doc::class.java)
+            mongoTemplate.remove(Query.query(Criteria.where("docId").`is`(id)), Annotation::class.java)
+            Result(0)
+        } catch (e: Exception) {
+            Result(500, e.toString())
         }
     }
 
@@ -117,7 +113,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         jsonObject.map {
             val text = it.asJsonObject.get("text").asString
             val doc = Doc(null, "5d2fe2f28eb1330dcc8f46bd", "0", text)
-            mongoTemplate.insert(doc,"doc")
+            mongoTemplate.insert(doc, "doc")
         }
     }
 }
