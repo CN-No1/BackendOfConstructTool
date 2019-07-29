@@ -62,9 +62,27 @@ class EntityController(val mongoTemplate: MongoTemplate) {
             update.set("moduleId", it.moduleId)
             update.set("pid", it.pid)
             update.set("description", it.description)
+            update.set("bandFlag", it.bandFlag)
             mongoTemplate.upsert(query, update, EntityClass::class.java)
         }
         return Result(0, "success")
+    }
+
+    @ApiOperation("删除实体类")
+    @DeleteMapping("deleteClass")
+    fun deleteClass(id: String): Result<Int?> {
+        return try {
+            val query = Query.query((Criteria.where("id").`is`(id)))
+            val queryRes = mongoTemplate.findOne(query, EntityClass::class.java)
+            if ("1" === queryRes!!.bandFlag){
+                Result(500,"该实体类已被绑定，无法删除！")
+            }else{
+                mongoTemplate.remove(query, EntityClass::class.java)
+                Result(0)
+            }
+        } catch (e: Exception) {
+            Result(500, e.toString())
+        }
     }
 
     @ApiOperation("新增或修改数据属性")
