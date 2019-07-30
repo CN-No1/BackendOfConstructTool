@@ -61,7 +61,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         mongoTemplate.upsert(query, update, NLUEntity::class.java)
         val flag = if (nluEntity.annotationList.isNotEmpty()) "1" else "0"
         val updateDocStatus = Update.update("status", flag)
-        mongoTemplate.upsert(query, updateDocStatus, Doc::class.java)
+        mongoTemplate.upsert(query, updateDocStatus, NLUEntity::class.java)
         return Result(0, "success")
     }
 
