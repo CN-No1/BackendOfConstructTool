@@ -1,7 +1,11 @@
 server:
-  port:9999
+  port: 9999
 spring:
   data:
     mongodb:
-      database: annotator
-      port: 27017
+      database: yuanyy
+      password: yuanyy
+      port: 10040
+      host: 192.168.11.120
+      username: yuanyy
+      authentication-database: yuanyy
