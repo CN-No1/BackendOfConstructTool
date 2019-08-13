@@ -1,6 +1,5 @@
 package com.aegis.kotlindemo.controller
 
-import com.aegis.kotlindemo.model.annotator.Annotation
 import com.aegis.kotlindemo.model.annotator.Doc
 import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.entity.Module
@@ -11,7 +10,6 @@ import io.swagger.annotations.ApiOperation
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.MongoTemplate
-import org.springframework.data.mongodb.core.findOne
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
@@ -67,7 +65,8 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("新增NLU文档")
     @PostMapping("createNLUDoc")
-    fun createNLUDoc(@RequestBody nluDoc: NLUEntity): Result<Int>? {
+    fun createNLUDoc(@RequestBody nluDoc: NLUEntity): Result<Int>?{
+        nluDoc.hashCode = nluDoc.content.hashCode()
         mongoTemplate.insert(nluDoc, "NLU_entity")
         return Result(0, "success")
     }
@@ -89,10 +88,12 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val fileName = """D:\traffic_nlu_data.json"""
         val file = File(fileName)
         val content = file.readText()
-        val jsonObject = JsonParser().parse(content).asJsonObject.get("qa_nlu_data").asJsonObject.get("common_examples").asJsonArray
+        val jsonObject = JsonParser().parse(content).asJsonObject.get("qa_nlu_data").asJsonObject.
+                get("common_examples").asJsonArray
         jsonObject.map {
             val text = it.asJsonObject.get("text").asString
-            val nluDoc = NLUEntity(null, text, "5d2fe2f28eb1330dcc8f46bd", "0", ArrayList())
+            val hashCode = text.hashCode()
+            val nluDoc = NLUEntity(null, text, "5d2fe2f28eb1330dcc8f46bd", "0", hashCode, ArrayList())
             mongoTemplate.insert(nluDoc, "NLU_entity")
         }
     }
