@@ -9,3 +9,8 @@ spring:
       host: 192.168.0.153
       username: annotator
       authentication-database: annotator
+  servlet:
+    multipart:
+      max-file-size: 100MB # 单个文件大小
+      max-request-size: 100MB # 设置总上传的数据大小
+      enabled: true

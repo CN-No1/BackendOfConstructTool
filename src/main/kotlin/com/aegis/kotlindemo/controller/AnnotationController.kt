@@ -4,6 +4,7 @@ import com.aegis.kotlindemo.model.annotator.Doc
 import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.entity.Module
 import com.aegis.kotlindemo.model.nlu.NLUEntity
+import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
@@ -14,8 +15,14 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import java.io.File
 import java.lang.Exception
+import java.util.*
+import java.util.regex.Pattern
+import kotlin.collections.ArrayList
+import java.util.regex.Pattern.CASE_INSENSITIVE
+
 
 @RestController
 @RequestMapping("annotation")
@@ -30,10 +37,15 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("根据条件分页查询文本内容")
     @GetMapping("getDocByParam")
-    fun getDocByParam(moduleId: String?, status: String?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
+    fun getDocByParam(moduleId: String?, status: String?, purpose: String?, docContent: String?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
         val criteria = Criteria()
         if (!moduleId.isNullOrBlank()) criteria.and("moduleId").`is`(moduleId)
         if (!status.isNullOrBlank()) criteria.and("status").`is`(status)
+        if (!purpose.isNullOrBlank()) criteria.and("purpose").`is`(purpose)
+        if (!docContent.isNullOrBlank()) {
+            val pattern = Pattern.compile("^.*$docContent.*$", CASE_INSENSITIVE)
+            criteria.and("content").regex(pattern)
+        }
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, NLUEntity::class.java)
         for (item in res) {
@@ -65,7 +77,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("新增NLU文档")
     @PostMapping("createNLUDoc")
-    fun createNLUDoc(@RequestBody nluDoc: NLUEntity): Result<Int>?{
+    fun createNLUDoc(@RequestBody nluDoc: NLUEntity): Result<Int>? {
         nluDoc.hashCode = nluDoc.content.hashCode()
         mongoTemplate.insert(nluDoc, "NLU_entity")
         return Result(0, "success")
@@ -84,17 +96,29 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("解析Json文件")
     @PostMapping("parseJson")
-    fun parseJson() {
-        val fileName = """D:\traffic_nlu_data.json"""
-        val file = File(fileName)
-        val content = file.readText()
-        val jsonObject = JsonParser().parse(content).asJsonObject.get("qa_nlu_data").asJsonObject.
-                get("common_examples").asJsonArray
+    fun parseJson(@RequestParam("file") file: MultipartFile,
+                  @RequestParam("newModuleId") newModuleId: String,
+                  @RequestParam("newPurpose") newPurpose: String) {
+        mongoTemplate.insert(Purpose(null, newModuleId, newPurpose), "purpose")
+        val inputStream = file.inputStream
+        val tempFile = File.createTempFile("temp", ".json")
+        org.apache.commons.io.FileUtils.copyInputStreamToFile(inputStream, tempFile)
+        val content = tempFile.readText()
+        val jsonObject = JsonParser().parse(content).asJsonObject.get("docList").asJsonArray
         jsonObject.map {
             val text = it.asJsonObject.get("text").asString
             val hashCode = text.hashCode()
-            val nluDoc = NLUEntity(null, text, "5d2fe2f28eb1330dcc8f46bd", "0", hashCode, ArrayList())
+            val nluDoc = NLUEntity(null, text, newModuleId, newPurpose, "0", hashCode, ArrayList(), Date())
             mongoTemplate.insert(nluDoc, "NLU_entity")
         }
+        tempFile.delete()
+    }
+
+    @ApiOperation("获取用途")
+    @GetMapping("getPurpose")
+    fun getPurpose(moduleId: String): Result<ArrayList<Purpose>?> {
+        val res = mongoTemplate.find(
+                Query.query(Criteria.where("moduleId").`is`(moduleId)), Purpose::class.java)
+        return Result<ArrayList<Purpose>?>(0).setData(ArrayList(res))
     }
 }
