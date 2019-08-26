@@ -3,6 +3,8 @@ package com.aegis.kotlindemo.controller
 import com.aegis.kotlindemo.model.entity.*
 import com.aegis.kotlindemo.model.result.Result
 import io.swagger.annotations.ApiOperation
+import net.bytebuddy.TypeCache
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -16,8 +18,11 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     @ApiOperation("查询实体类")
     @GetMapping("getClasses")
     fun getClasses(id: String): Result<ArrayList<EntityClass>?> {
+        val query = Query()
+        query.with(Sort(Sort.Direction.ASC, "index"))
+        query.addCriteria(Criteria.where("treeId").`is`(id))
         val res = mongoTemplate.find(
-                Query.query(Criteria.where("treeId").`is`(id)), EntityClass::class.java)
+                query, EntityClass::class.java)
         return Result<ArrayList<EntityClass>?>(0).setData(ArrayList(res))
     }
 
@@ -124,6 +129,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     @ApiOperation("新增或修改实体类")
     @PostMapping("creatOrUpdateClass")
     fun creatOrUpdateClass(@RequestBody entityClass: List<EntityClass>): Result<Int?> {
+        var index = 0
         for (it in entityClass) {
             val query = Query.query(Criteria.where("id").`is`(it.id))
             val update = Update()
@@ -133,7 +139,9 @@ class EntityController(val mongoTemplate: MongoTemplate) {
             update.set("description", it.description)
             update.set("bandFlag", it.bandFlag)
             update.set("propList", it.propList)
+            update.set("index", index)
             mongoTemplate.upsert(query, update, EntityClass::class.java)
+            index += 1
         }
         return Result(0, "success")
     }
@@ -145,7 +153,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
             val query = Query.query((Criteria.where("id").`is`(id)))
             val queryRes = mongoTemplate.findOne(query, EntityClass::class.java)
             if (queryRes != null) {
-                if ("1" === queryRes!!.bandFlag) {
+                if ("1" === queryRes.bandFlag) {
                     Result(500, "该实体类已被绑定，无法删除！")
                 } else {
                     mongoTemplate.remove(query, EntityClass::class.java)
