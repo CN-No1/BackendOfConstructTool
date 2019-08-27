@@ -69,7 +69,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val query = Query.query(Criteria.where("id").`is`(nluEntity.id))
         val update = Update()
         update.set("annotationList", nluEntity.annotationList)
-        update.set("intention", nluEntity.intention)
+        nluEntity.intention?.let { update.set("intention", it) }
         mongoTemplate.upsert(query, update, NLUEntity::class.java)
         val flag = if (nluEntity.annotationList.isNotEmpty()) "1" else "0"
         val updateDocStatus = Update.update("status", flag)
@@ -111,7 +111,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
             val text = it.asJsonObject.get("text").asString
             val hashCode = text.hashCode()
             val nluDoc = NLUEntity(null, text, newModuleId, newPurpose, "0",
-                    hashCode, ArrayList(), Date(), "")
+                    hashCode, ArrayList(), Date(), null)
             mongoTemplate.insert(nluDoc, "NLU_entity")
         }
         tempFile.delete()

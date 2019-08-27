@@ -49,8 +49,12 @@ class EntityController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("查询树")
     @GetMapping("getTree")
-    fun getTree(id: String): Result<ArrayList<Tree>> {
-        val query = Query.query(Criteria.where("deleteFlag").`is`(0).and("moduleId").`is`(id))
+    fun getTree(moduleId: String, treeType: String?): Result<ArrayList<Tree>> {
+        val criteria = Criteria()
+        criteria.and("deleteFlag").`is`(0)
+        criteria.and("moduleId").`is`(moduleId)
+        if (!treeType.isNullOrBlank()) criteria.and("treeType").`is`(treeType)
+        val query = Query.query(criteria)
         val res = mongoTemplate.find(query, Tree::class.java)
         return Result<ArrayList<Tree>>(0).setData(ArrayList(res))
     }
