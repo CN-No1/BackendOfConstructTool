@@ -1,7 +1,10 @@
 package com.aegis.kotlindemo.controller
 
 import com.aegis.kotlindemo.model.entity.*
+import com.aegis.kotlindemo.model.nlu.NLUEntity
+import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
+import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
 import net.bytebuddy.TypeCache
 import org.springframework.data.domain.Sort
@@ -10,6 +13,10 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
+import java.io.File
+import java.util.*
+import kotlin.collections.ArrayList
 
 @RestController
 @RequestMapping("entity")
@@ -31,6 +38,13 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     fun getModule(): Result<ArrayList<Module>> {
         val res = mongoTemplate.find(Query.query(Criteria.where("deleteFlag").`is`(0)), Module::class.java)
         return Result<ArrayList<Module>>(0).setData(ArrayList(res))
+    }
+
+    @ApiOperation("查询树类型")
+    @GetMapping("getTreeType")
+    fun getTreeType(): Result<ArrayList<TreeType>> {
+        val res = mongoTemplate.findAll(TreeType::class.java)
+        return Result<ArrayList<TreeType>>(0).setData(ArrayList(res))
     }
 
     @ApiOperation("查询树")
@@ -126,6 +140,13 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         return Result(0)
     }
 
+    @ApiOperation("删除树类型")
+    @DeleteMapping("deleteTreeType")
+    fun deleteTreeType(id: String): Result<Int?> {
+        mongoTemplate.remove(Query.query((Criteria.where("id").`is`(id))), TreeType::class.java)
+        return Result(0)
+    }
+
     @ApiOperation("新增或修改实体类")
     @PostMapping("creatOrUpdateClass")
     fun creatOrUpdateClass(@RequestBody entityClass: List<EntityClass>): Result<Int?> {
@@ -193,6 +214,25 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         mongoTemplate.dropCollection("data_type")
         mongoTemplate.insert(dataType, "data_type")
         return Result(0, "success")
+    }
+
+    @ApiOperation("解析Json文件")
+    @PostMapping("parseJson")
+    fun parseJson(@RequestParam("file") file: MultipartFile,
+                  @RequestParam("treeId") treeId: String) {
+        val inputStream = file.inputStream
+        val tempFile = File.createTempFile("temp", ".json")
+        org.apache.commons.io.FileUtils.copyInputStreamToFile(inputStream, tempFile)
+        val content = tempFile.readText()
+        val jsonObject = JsonParser().parse(content).asJsonObject.get("entityList").asJsonArray
+        jsonObject.map {
+            val label = it.asJsonObject.get("label").asString
+            val id = it.asJsonObject.get("_id").asString
+            val entity = EntityClass(id, treeId,label,"0","","0",
+                    arrayListOf())
+            mongoTemplate.insert(entity, "entity_class")
+        }
+        tempFile.delete()
     }
 
 }
