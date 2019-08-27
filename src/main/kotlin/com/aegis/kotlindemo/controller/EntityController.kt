@@ -127,10 +127,18 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         } else {
             val update = Update()
             update.set("name", tree.name)
+            tree.treeType?.let { update.set("treeType", it) }
             val query = Query.query(Criteria.where("id").`is`(tree.id))
             mongoTemplate.updateFirst(query, update, Tree::class.java)
             Result(0)
         }
+    }
+
+    @ApiOperation("新增树类型")
+    @PostMapping("createTreeType")
+    fun createTreeType(@RequestBody treeType: TreeType): Result<Int?> {
+        mongoTemplate.insert(treeType, "tree_type")
+        return Result(0)
     }
 
     @ApiOperation("删除树")
@@ -228,7 +236,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         jsonObject.map {
             val label = it.asJsonObject.get("label").asString
             val id = it.asJsonObject.get("_id").asString
-            val entity = EntityClass(id, treeId,label,"0","","0",
+            val entity = EntityClass(id, treeId, label, "0", "", "0",
                     arrayListOf())
             mongoTemplate.insert(entity, "entity_class")
         }
