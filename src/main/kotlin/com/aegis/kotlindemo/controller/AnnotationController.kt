@@ -22,6 +22,9 @@ import java.util.*
 import java.util.regex.Pattern
 import kotlin.collections.ArrayList
 import java.util.regex.Pattern.CASE_INSENSITIVE
+import com.mongodb.BasicDBObject
+import com.mongodb.DBObject
+import org.springframework.data.mongodb.core.validation.Validator.criteria
 
 
 @RestController
@@ -101,7 +104,12 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
     fun parseJson(@RequestParam("file") file: MultipartFile,
                   @RequestParam("newModuleId") newModuleId: String,
                   @RequestParam("newPurpose") newPurpose: String) {
-        mongoTemplate.insert(Purpose(null, newModuleId, newPurpose), "purpose")
+        val query = Query.query(Criteria.where("moduleId").`is`(newModuleId)
+                .and("name").`is`(newPurpose))
+        val res = mongoTemplate.find(query, Purpose::class.java)
+        if (res.isEmpty()) {
+            mongoTemplate.insert(Purpose(null, newModuleId, newPurpose), "purpose")
+        }
         val inputStream = file.inputStream
         val tempFile = File.createTempFile("temp", ".json")
         org.apache.commons.io.FileUtils.copyInputStreamToFile(inputStream, tempFile)
@@ -119,9 +127,9 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("获取用途")
     @GetMapping("getPurpose")
-    fun getPurpose(moduleId: String): Result<ArrayList<Purpose>?> {
-        val res = mongoTemplate.find(
-                Query.query(Criteria.where("moduleId").`is`(moduleId)), Purpose::class.java)
-        return Result<ArrayList<Purpose>?>(0).setData(ArrayList(res))
+    fun getPurpose(): Result<List<String>> {
+        val res = mongoTemplate.findDistinct(
+                "purpose", NLUEntity::class.java, String::class.java)
+        return Result<List<String>>(0).setData(res)
     }
 }

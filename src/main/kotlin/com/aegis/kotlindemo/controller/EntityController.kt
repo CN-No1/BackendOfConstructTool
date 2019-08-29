@@ -1,12 +1,9 @@
 package com.aegis.kotlindemo.controller
 
 import com.aegis.kotlindemo.model.entity.*
-import com.aegis.kotlindemo.model.nlu.NLUEntity
-import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
-import net.bytebuddy.TypeCache
 import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
@@ -15,7 +12,6 @@ import org.springframework.data.mongodb.core.query.Update
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import java.io.File
-import java.util.*
 import kotlin.collections.ArrayList
 
 @RestController
@@ -148,8 +144,14 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     @ApiOperation("删除树")
     @DeleteMapping("deleteTree")
     fun deleteTree(id: String): Result<Int?> {
-        mongoTemplate.remove(Query.query((Criteria.where("id").`is`(id))), Tree::class.java)
-        return Result(0)
+        val query = Query.query((Criteria.where("treeId").`is`(id)))
+        val res = mongoTemplate.find(query, EntityClass::class.java)
+        return if (res.isNotEmpty()) {
+            Result(500, "此树非空，禁止删除！")
+        } else {
+            mongoTemplate.remove(Query.query((Criteria.where("id").`is`(id))), Tree::class.java)
+            Result(0)
+        }
     }
 
     @ApiOperation("删除树类型")
@@ -239,8 +241,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         val jsonObject = JsonParser().parse(content).asJsonObject.get("entityList").asJsonArray
         jsonObject.map {
             val label = it.asJsonObject.get("label").asString
-            val id = it.asJsonObject.get("_id").asString
-            val entity = EntityClass(id, treeId, label, "0", "", "0",
+            val entity = EntityClass(null, treeId, label, "0", "", "0",
                     arrayListOf())
             mongoTemplate.insert(entity, "entity_class")
         }
