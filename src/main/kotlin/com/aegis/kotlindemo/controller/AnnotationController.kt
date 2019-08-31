@@ -3,6 +3,9 @@ package com.aegis.kotlindemo.controller
 import com.aegis.kotlindemo.model.annotator.Doc
 import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.entity.Module
+import com.aegis.kotlindemo.model.instance.Instance
+import com.aegis.kotlindemo.model.instance.InstanceObject
+import com.aegis.kotlindemo.model.instance.Range
 import com.aegis.kotlindemo.model.nlu.NLUEntity
 import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
@@ -24,6 +27,7 @@ import kotlin.collections.ArrayList
 import java.util.regex.Pattern.CASE_INSENSITIVE
 import com.mongodb.BasicDBObject
 import com.mongodb.DBObject
+import org.springframework.data.mongodb.core.insert
 import org.springframework.data.mongodb.core.validation.Validator.criteria
 
 
@@ -74,9 +78,16 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         update.set("annotationList", nluEntity.annotationList)
         nluEntity.intention?.let { update.set("intention", it) }
         mongoTemplate.upsert(query, update, NLUEntity::class.java)
-        val flag = if (nluEntity.annotationList.isNotEmpty()) "1" else "0"
+        val flag = if (nluEntity.annotationList.isEmpty() && nluEntity.intention!!.isEmpty()) "0" else "1"
         val updateDocStatus = Update.update("status", flag)
         mongoTemplate.upsert(query, updateDocStatus, NLUEntity::class.java)
+        // 删除并重新导入实例图对象
+        mongoTemplate.remove(query, InstanceObject::class.java)
+        val instanceObject = InstanceObject(nluEntity.id, nluEntity.content, arrayListOf(),
+                nluEntity.moduleId, "0", nluEntity.hashCode, Date(), nluEntity.annotationList)
+        if (flag === "1") {
+            mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
+        }
         return Result(0, "success")
     }
 
