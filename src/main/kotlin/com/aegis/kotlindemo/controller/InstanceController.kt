@@ -25,9 +25,11 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
     @ApiOperation("修改实例对象")
     @PostMapping("updateInstance")
     fun updateInstance(@RequestBody instanceObject: InstanceObject): Result<Int> {
+        val query = Query.query(Criteria.where("id").`is`(instanceObject.id))
+        val flag = if (instanceObject.instanceList.isEmpty()) "0" else "1"
         val update = Update()
         update.set("instanceList", instanceObject.instanceList)
-        val query = Query.query(Criteria.where("id").`is`(instanceObject.id))
+        update.set("status", if (instanceObject.status == "2") "2" else flag)
         mongoTemplate.updateFirst(query, update, instanceObject::class.java)
         return Result(0)
     }
@@ -40,7 +42,7 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         if (!status.isNullOrBlank()) criteria.and("status").`is`(status)
         if (!docContent.isNullOrBlank()) {
             val pattern = Pattern.compile("^.*$docContent.*$", Pattern.CASE_INSENSITIVE)
-            criteria.and("content").regex(pattern)
+            criteria.and("text").regex(pattern)
         }
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, InstanceObject::class.java)
