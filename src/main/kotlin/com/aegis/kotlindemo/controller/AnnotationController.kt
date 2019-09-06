@@ -6,6 +6,7 @@ import com.aegis.kotlindemo.model.entity.Module
 import com.aegis.kotlindemo.model.instance.Instance
 import com.aegis.kotlindemo.model.instance.InstanceObject
 import com.aegis.kotlindemo.model.instance.Range
+import com.aegis.kotlindemo.model.nlu.Annotation
 import com.aegis.kotlindemo.model.nlu.NLUEntity
 import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
@@ -132,6 +133,52 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
             val nluDoc = NLUEntity(null, text, newModuleId, newPurpose, "0",
                     hashCode, ArrayList(), Date(), null)
             mongoTemplate.insert(nluDoc, "NLU_entity")
+        }
+        tempFile.delete()
+    }
+
+
+    @ApiOperation("解析Json文件")
+    @PostMapping("parseJson2")
+    fun parseJson2(@RequestParam("file") file: MultipartFile) {
+        val inputStream = file.inputStream
+        val tempFile = File.createTempFile("temp", ".json")
+        org.apache.commons.io.FileUtils.copyInputStreamToFile(inputStream, tempFile)
+        val content = tempFile.readText()
+        val jsonObject = JsonParser().parse(content).asJsonObject.get("docList").asJsonArray
+        jsonObject.map {
+            val text = it.asJsonObject.get("text").asString
+            val intent = it.asJsonObject.get("intent").asString
+            val instance = mongoTemplate.findOne(
+                    Query.query(Criteria.where("label").`is`(intent)),EntityClass::class.java)!!
+            val hashCode = text.hashCode()
+            val annotationList = arrayListOf<Annotation>()
+            if (it.asJsonObject.has("entities")) {
+                val temArr = it.asJsonObject.get("entities").asJsonArray
+                annotationList.clear()
+                if (temArr.size() != 0) {
+                    temArr.map { item ->
+                        val entity = item.asJsonObject.get("entity").asString
+                        val entityClass = mongoTemplate.findOne(
+                                Query.query(Criteria.where("label").`is`(entity)), EntityClass::class.java)
+                        var entityId = ""
+                        if (entityClass!=null){
+                            entityId = entityClass.id!!
+                        }else{
+                            println("不存在$entity")
+                        }
+                        val annotation = Annotation(entityId, item.asJsonObject.get("value").asString,
+                                item.asJsonObject.get("start").asInt, item.asJsonObject.get("end").asInt)
+                        annotationList.add(annotation)
+                    }
+                }
+            }
+            val nluDoc = NLUEntity(null, text, "5d4d34110b5f5a2d7ce2cca1", "nlu", "1",
+                    hashCode, annotationList, Date(), arrayListOf(instance))
+            mongoTemplate.insert(nluDoc, "test")
+            val instanceObject = InstanceObject(nluDoc.id, nluDoc.content, arrayListOf(),
+                    nluDoc.moduleId, "0", nluDoc.hashCode, Date(), nluDoc.annotationList)
+                mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
         }
         tempFile.delete()
     }
