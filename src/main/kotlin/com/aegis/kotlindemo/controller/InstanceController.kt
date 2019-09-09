@@ -1,5 +1,6 @@
 package com.aegis.kotlindemo.controller
 
+import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.instance.InstanceObject
 import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
@@ -46,6 +47,12 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         }
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, InstanceObject::class.java)
+        res.map { annotation ->
+            annotation.annotationList?.map {
+                val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
+                it.entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)!!.label
+            }
+        }
         val count = mongoTemplate.count(query, InstanceObject::class.java)
         val page = PageImpl<InstanceObject>(res, pageable, count)
         return Result<PageImpl<InstanceObject>?>(0).setData(page)

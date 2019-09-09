@@ -188,7 +188,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
             val query = Query.query((Criteria.where("id").`is`(id)))
             val queryRes = mongoTemplate.findOne(query, EntityClass::class.java)
             if (queryRes != null) {
-                if ("1" === queryRes.bandFlag) {
+                if ("1" == queryRes.bandFlag) {
                     Result(500, "该实体类已被绑定，无法删除！")
                 } else {
                     mongoTemplate.remove(query, EntityClass::class.java)
@@ -196,9 +196,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
                 }
             } else {
                 Result(0)
-
             }
-
         } catch (e: Exception) {
             Result(500, e.toString())
         }

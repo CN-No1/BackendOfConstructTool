@@ -150,21 +150,24 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
             val text = it.asJsonObject.get("text").asString
             val intent = it.asJsonObject.get("intent").asString
             val instance = mongoTemplate.findOne(
-                    Query.query(Criteria.where("label").`is`(intent)),EntityClass::class.java)!!
+                    Query.query(Criteria.where("label").`is`(intent)), EntityClass::class.java)!!
             val hashCode = text.hashCode()
             val annotationList = arrayListOf<Annotation>()
             if (it.asJsonObject.has("entities")) {
+                val update = Update()
+                update.set("bandFlag", "1")
                 val temArr = it.asJsonObject.get("entities").asJsonArray
                 annotationList.clear()
                 if (temArr.size() != 0) {
                     temArr.map { item ->
                         val entity = item.asJsonObject.get("entity").asString
-                        val entityClass = mongoTemplate.findOne(
-                                Query.query(Criteria.where("label").`is`(entity)), EntityClass::class.java)
+                        val queryEntity = Query.query(Criteria.where("label").`is`(entity))
+                        val entityClass = mongoTemplate.findOne(queryEntity, EntityClass::class.java)
                         var entityId = ""
-                        if (entityClass!=null){
+                        if (entityClass != null) {
                             entityId = entityClass.id!!
-                        }else{
+                            mongoTemplate.updateFirst(queryEntity, update, EntityClass::class.java)
+                        } else {
                             println("不存在$entity")
                         }
                         val annotation = Annotation(entityId, item.asJsonObject.get("value").asString,
@@ -175,10 +178,10 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
             }
             val nluDoc = NLUEntity(null, text, "5d4d34110b5f5a2d7ce2cca1", "nlu", "1",
                     hashCode, annotationList, Date(), arrayListOf(instance))
-            mongoTemplate.insert(nluDoc, "test")
+            mongoTemplate.insert(nluDoc, "NLU_entity")
             val instanceObject = InstanceObject(nluDoc.id, nluDoc.content, arrayListOf(),
                     nluDoc.moduleId, "0", nluDoc.hashCode, Date(), nluDoc.annotationList)
-                mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
+            mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
         }
         tempFile.delete()
     }
