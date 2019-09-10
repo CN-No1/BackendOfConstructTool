@@ -77,13 +77,20 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val query = Query.query(Criteria.where("id").`is`(nluEntity.id))
         val update = Update()
         update.set("annotationList", nluEntity.annotationList)
+        nluEntity.annotationList.map {
+            val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
+            val updateBandFlag = Update()
+            updateBandFlag.set("bandFlag","1")
+            mongoTemplate.updateFirst(queryEntity,updateBandFlag,EntityClass::class.java)
+        }
         nluEntity.intention?.let { update.set("intention", it) }
         mongoTemplate.upsert(query, update, NLUEntity::class.java)
         val flag = if (nluEntity.annotationList.isEmpty() && nluEntity.intention!!.isEmpty()) "0" else "1"
         val updateDocStatus = Update.update("status", flag)
         mongoTemplate.upsert(query, updateDocStatus, NLUEntity::class.java)
         // 删除并重新导入实例图对象
-        mongoTemplate.remove(query, InstanceObject::class.java)
+        val queryInstance = Query.query(Criteria.where("hashCode").`is`(nluEntity.hashCode))
+        mongoTemplate.remove(queryInstance, InstanceObject::class.java)
         val instanceObject = InstanceObject(nluEntity.id, nluEntity.content, arrayListOf(),
                 nluEntity.moduleId, "0", nluEntity.hashCode, Date(), nluEntity.annotationList)
         if (flag === "1") {
