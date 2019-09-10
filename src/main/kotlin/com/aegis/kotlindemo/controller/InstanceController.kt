@@ -46,7 +46,7 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
             val pattern = Pattern.compile("^.*$docContent.*$", Pattern.CASE_INSENSITIVE)
             criteria.and("text").regex(pattern)
         }
-        val query = Query.query(criteria).with(pageable).with(Sort(Sort.Direction.DESC,"updateTime"))
+        val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, InstanceObject::class.java)
         res.map { annotation ->
             annotation.annotationList?.map {
