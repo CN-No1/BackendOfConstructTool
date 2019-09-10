@@ -45,7 +45,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("根据条件分页查询文本内容")
     @GetMapping("getDocByParam")
-    fun getDocByParam(moduleId: String?, status: String?, purpose: String?, docContent: String?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
+    fun getDocByParam(moduleId: String?, status: String?, purpose: String?, docContent: String?, hashCode: Int?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
         val criteria = Criteria()
         if (!moduleId.isNullOrBlank()) criteria.and("moduleId").`is`(moduleId)
         if (!status.isNullOrBlank()) criteria.and("status").`is`(status)
@@ -54,6 +54,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
             val pattern = Pattern.compile("^.*$docContent.*$", CASE_INSENSITIVE)
             criteria.and("content").regex(pattern)
         }
+        if (hashCode != 0) criteria.and("hashCode").`is`(hashCode)
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, NLUEntity::class.java)
         for (item in res) {
@@ -80,8 +81,8 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         nluEntity.annotationList.map {
             val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
             val updateBandFlag = Update()
-            updateBandFlag.set("bandFlag","1")
-            mongoTemplate.updateFirst(queryEntity,updateBandFlag,EntityClass::class.java)
+            updateBandFlag.set("bandFlag", "1")
+            mongoTemplate.updateFirst(queryEntity, updateBandFlag, EntityClass::class.java)
         }
         nluEntity.intention?.let { update.set("intention", it) }
         mongoTemplate.upsert(query, update, NLUEntity::class.java)

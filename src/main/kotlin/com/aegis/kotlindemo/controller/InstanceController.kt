@@ -38,7 +38,7 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("根据条件分页查询文本内容")
     @GetMapping("getDocByParam")
-    fun getDocByParam(moduleId: String?, status: String?, docContent: String?, pageable: Pageable): Result<PageImpl<InstanceObject>?> {
+    fun getDocByParam(moduleId: String?, status: String?, docContent: String?, hashCode: Int?, pageable: Pageable): Result<PageImpl<InstanceObject>?> {
         val criteria = Criteria()
         if (!moduleId.isNullOrBlank()) criteria.and("moduleId").`is`(moduleId)
         if (!status.isNullOrBlank()) criteria.and("status").`is`(status)
@@ -46,6 +46,7 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
             val pattern = Pattern.compile("^.*$docContent.*$", Pattern.CASE_INSENSITIVE)
             criteria.and("text").regex(pattern)
         }
+        if (hashCode != 0) criteria.and("hashCode").`is`(hashCode)
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, InstanceObject::class.java)
         res.map { annotation ->
