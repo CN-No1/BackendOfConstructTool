@@ -91,12 +91,18 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         mongoTemplate.upsert(query, updateDocStatus, NLUEntity::class.java)
         // 删除并重新导入实例图对象
         val queryInstance = Query.query(Criteria.where("hashCode").`is`(nluEntity.hashCode))
-        mongoTemplate.remove(queryInstance, InstanceObject::class.java)
-        val instanceObject = InstanceObject(nluEntity.id, nluEntity.content, arrayListOf(),
-                nluEntity.moduleId, "0", nluEntity.hashCode, Date(), nluEntity.annotationList)
-        if (flag === "1") {
-            mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
-        }
+        val updateInstance = Update()
+        updateInstance.set("instanceList", arrayListOf<Instance>())
+        updateInstance.set("status", "0")
+        updateInstance.set("updateTime", Date())
+        updateInstance.set("annotationList", nluEntity.annotationList)
+//        mongoTemplate.remove(queryInstance, InstanceObject::class.java)
+//        val instanceObject = InstanceObject(nluEntity.id, nluEntity.content, arrayListOf(),
+//                nluEntity.moduleId, "0", nluEntity.hashCode, Date(), nluEntity.annotationList)
+//        if (flag === "1") {
+//            mongoTemplate.insert(arrayListOf(instanceObject), InstanceObject::class.java)
+//        }
+        mongoTemplate.updateFirst(queryInstance, updateInstance, InstanceObject::class.java)
         return Result(0, "success")
     }
 
