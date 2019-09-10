@@ -8,6 +8,7 @@ import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -45,7 +46,7 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
             val pattern = Pattern.compile("^.*$docContent.*$", Pattern.CASE_INSENSITIVE)
             criteria.and("text").regex(pattern)
         }
-        val query = Query.query(criteria).with(pageable)
+        val query = Query.query(criteria).with(pageable).with(Sort(Sort.Direction.DESC,"updateTime"))
         val res = mongoTemplate.find(query, InstanceObject::class.java)
         res.map { annotation ->
             annotation.annotationList?.map {
