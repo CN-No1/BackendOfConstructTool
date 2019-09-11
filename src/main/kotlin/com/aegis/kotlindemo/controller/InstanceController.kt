@@ -30,6 +30,12 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         val query = Query.query(Criteria.where("id").`is`(instanceObject.id))
         val flag = if (instanceObject.instanceList.isEmpty()) "0" else "1"
         val update = Update()
+        if (flag == "1") {
+            instanceObject.instanceList.map {
+                it.instanceName = mongoTemplate.findOne(
+                        Query.query(Criteria.where("id").`is`(it.domain)),EntityClass::class.java)!!.label
+            }
+        }
         update.set("instanceList", instanceObject.instanceList)
         update.set("status", if (instanceObject.status == "2") "2" else flag)
         mongoTemplate.updateFirst(query, update, instanceObject::class.java)

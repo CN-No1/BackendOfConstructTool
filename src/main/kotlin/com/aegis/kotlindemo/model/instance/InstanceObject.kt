@@ -11,7 +11,7 @@ data class InstanceObject(@Id val id: String? = null, val text: String, val inst
                           val moduleId: String, val status: String, var hashCode: Int, val updateTime: Date,
                           val annotationList: ArrayList<Annotation>? = arrayListOf())
 
-data class Instance(val instanceName: String, val domain: String, val rangeList: ArrayList<Range>)
+data class Instance(var instanceName: String, val domain: String, val rangeList: ArrayList<Range>)
 
 data class Range(val content: String, val relation: String?, val role: String, val status: Boolean)
 
