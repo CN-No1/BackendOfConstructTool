@@ -32,8 +32,11 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         val update = Update()
         if (flag == "1") {
             instanceObject.instanceList.map {
-                it.instanceName = mongoTemplate.findOne(
-                        Query.query(Criteria.where("id").`is`(it.domain)),EntityClass::class.java)!!.label
+                val queryEntity = Query.query(Criteria.where("id").`is`(it.domain))
+//                val update = Update()
+//                update.set("bandFlag", "1")
+                it.instanceName = mongoTemplate.findOne(queryEntity, EntityClass::class.java)!!.label
+//                mongoTemplate.updateFirst(queryEntity, update, EntityClass::class.java)
             }
         }
         update.set("instanceList", instanceObject.instanceList)

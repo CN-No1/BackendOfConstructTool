@@ -20,13 +20,23 @@ class EntityController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("查询实体类")
     @GetMapping("getClasses")
-    fun getClasses(id: String): Result<ArrayList<EntityClass>?> {
+    fun getClasses(treeId: String): Result<ArrayList<EntityClass>?> {
         val query = Query()
         query.with(Sort(Sort.Direction.ASC, "index"))
-        query.addCriteria(Criteria.where("treeId").`is`(id))
+        query.addCriteria(Criteria.where("treeId").`is`(treeId))
         val res = mongoTemplate.find(
                 query, EntityClass::class.java)
         return Result<ArrayList<EntityClass>?>(0).setData(ArrayList(res))
+    }
+
+    @ApiOperation("通过id查询实体类")
+    @GetMapping("getClassesById")
+    fun getClassesById(id: String): Result<EntityClass?> {
+        val query = Query()
+        query.addCriteria(Criteria.where("id").`is`(id))
+        val res = mongoTemplate.findOne(
+                query, EntityClass::class.java)
+        return Result<EntityClass?>(0).setData(res)
     }
 
     @ApiOperation("查询模块")
