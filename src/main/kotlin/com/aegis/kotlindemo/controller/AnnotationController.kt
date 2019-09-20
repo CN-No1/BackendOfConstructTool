@@ -55,7 +55,10 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         res.map { annotation ->
             annotation.annotationList.map {
                 val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
-                it.entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)!!.label
+                val entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)
+                if (entity != null) {
+                    it.entity = entity.label
+                }
             }
         }
         val count = mongoTemplate.count(query, NLUEntity::class.java)
@@ -136,7 +139,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
         val content = tempFile.readText()
         val jsonObject = JsonParser().parse(content).asJsonObject.get("idList").asJsonArray
         jsonObject.map {
-            val hashCode = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(it.asString)),NLUEntity::class.java)!!.hashCode
+            val hashCode = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(it.asString)), NLUEntity::class.java)!!.hashCode
             val queryInstance = Query.query(Criteria.where("hashCode").`is`(hashCode))
             val updateInstance = Update()
             updateInstance.set("status", "2")
@@ -204,7 +207,7 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("初始化关联表")
     @GetMapping("initCorrelation")
-    fun initCorrelation(){
+    fun initCorrelation() {
         val nluList = mongoTemplate.findAll(NLUEntity::class.java)
         val instanceObjectList = mongoTemplate.findAll(InstanceObject::class.java)
         val correlationList = ArrayList<Correlation>()
@@ -218,11 +221,11 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
                 correlationList.add(correlation)
             }
         }
-        instanceObjectList.map {instanceObject ->
-            instanceObject.instanceList.map {instance ->
+        instanceObjectList.map { instanceObject ->
+            instanceObject.instanceList.map { instance ->
                 val correlation = Correlation(null, instanceObject.id!!, instance.domain)
                 correlationList.add(correlation)
-                instance.rangeList.map {range ->
+                instance.rangeList.map { range ->
                     if (!range.relation.isNullOrEmpty()) {
                         val correlation2 = Correlation(null, instanceObject.id, range.relation!!)
                         correlationList.add(correlation2)
