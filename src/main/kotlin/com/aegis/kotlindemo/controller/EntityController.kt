@@ -204,7 +204,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
             if (queryRes.isNotEmpty()) {
                 Result(500, "该实体类已被绑定，无法删除！")
             } else {
-//                mongoTemplate.remove(query, EntityClass::class.java)
+                mongoTemplate.remove(Query.query(Criteria.where("id").`is`(id)), EntityClass::class.java)
                 Result(0)
             }
         } catch (e: Exception) {
