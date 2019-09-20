@@ -1,6 +1,10 @@
 package com.aegis.kotlindemo.controller
 
+import com.aegis.kotlindemo.model.correlation.Correlation
+import com.aegis.kotlindemo.model.correlation.CorrelationObject
 import com.aegis.kotlindemo.model.entity.*
+import com.aegis.kotlindemo.model.instance.InstanceObject
+import com.aegis.kotlindemo.model.nlu.NLUEntity
 import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
@@ -195,20 +199,54 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     @DeleteMapping("deleteClass")
     fun deleteClass(id: String): Result<Int?> {
         return try {
-            val query = Query.query((Criteria.where("id").`is`(id)))
-            val queryRes = mongoTemplate.findOne(query, EntityClass::class.java)
-            if (queryRes != null) {
-                if ("1" == queryRes.bandFlag) {
-                    Result(500, "该实体类已被绑定，无法删除！")
-                } else {
-                    mongoTemplate.remove(query, EntityClass::class.java)
-                    Result(0)
-                }
+            val query = Query.query((Criteria.where("entityId").`is`(id)))
+            val queryRes = mongoTemplate.find(query, Correlation::class.java)
+            if (queryRes.isNotEmpty()) {
+                Result(500, "该实体类已被绑定，无法删除！")
             } else {
+//                mongoTemplate.remove(query, EntityClass::class.java)
                 Result(0)
             }
         } catch (e: Exception) {
             Result(500, e.toString())
+        }
+    }
+
+    @ApiOperation("查询绑定列表")
+    @GetMapping("getBandingList")
+    fun getBandingList(entityId: String): Result<ArrayList<CorrelationObject>?> {
+        val queryCorrelation = Query.query((Criteria.where("entityId").`is`(entityId)))
+        val entity = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(entityId)),EntityClass::class.java)
+        val queryTreeType = Query.query((Criteria.where("id").`is`(entity!!.treeId)))
+        val treeType = mongoTemplate.findOne(queryTreeType, Tree::class.java)!!.treeType
+        val queryRes = mongoTemplate.find(queryCorrelation, Correlation::class.java)
+        val idList = ArrayList<String>()
+        queryRes.map {
+            if (!idList.contains(it.objectId)) {
+                idList.add(it.objectId)
+            }
+        }
+        val correlationObjectList = arrayListOf<CorrelationObject>()
+        if (treeType == "0" || treeType == "1") {
+            idList.map {
+                val nluEntity = mongoTemplate.findOne(
+                        Query.query(Criteria.where("id").`is`(it)), NLUEntity::class.java)
+                if (nluEntity != null) {
+                    val correlationObject = CorrelationObject(nluEntity.id!!, nluEntity.content, nluEntity.hashCode)
+                    correlationObjectList.add(correlationObject)
+                }
+            }
+            return Result<ArrayList<CorrelationObject>?>(0).setData(correlationObjectList)
+        } else {
+            queryRes.map {
+                val instanceObject = mongoTemplate.findOne(
+                        Query.query(Criteria.where("id").`is`(it.objectId)), InstanceObject::class.java)
+                if (instanceObject != null) {
+                    val correlationObject = CorrelationObject(instanceObject.id!!, instanceObject.text, instanceObject.hashCode)
+                    correlationObjectList.add(correlationObject)
+                }
+            }
+            return Result<ArrayList<CorrelationObject>?>(0).setData(correlationObjectList)
         }
     }
 

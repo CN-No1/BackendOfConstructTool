@@ -1,11 +1,13 @@
 package com.aegis.kotlindemo.controller
 
+import com.aegis.kotlindemo.model.correlation.Correlation
 import com.aegis.kotlindemo.model.entity.EntityClass
 import com.aegis.kotlindemo.model.instance.InstanceObject
 import com.aegis.kotlindemo.model.nlu.Purpose
 import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
+import org.bson.types.ObjectId
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -29,20 +31,37 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
     fun updateInstance(@RequestBody instanceObject: InstanceObject): Result<Int> {
         val query = Query.query(Criteria.where("id").`is`(instanceObject.id))
         val flag = if (instanceObject.instanceList.isEmpty()) "0" else "1"
+        val correlationList = ArrayList<Correlation>()
         val update = Update()
+        deleteCorrelation(instanceObject.id as String)
         if (flag == "1") {
             instanceObject.instanceList.map {
                 val queryEntity = Query.query(Criteria.where("id").`is`(it.domain))
-//                val update = Update()
-//                update.set("bandFlag", "1")
                 it.instanceName = mongoTemplate.findOne(queryEntity, EntityClass::class.java)!!.label
-//                mongoTemplate.updateFirst(queryEntity, update, EntityClass::class.java)
+                // 绑定实例与实体类
+                val correlation = Correlation(null, instanceObject.id, it.domain)
+                correlationList.add(correlation)
+                it.rangeList.map { range ->
+                    if (!range.relation.isNullOrEmpty()) {
+                        val correlation2 = Correlation(null, instanceObject.id, range.relation!!)
+                        correlationList.add(correlation2)
+                    }
+                }
             }
+            mongoTemplate.insert(correlationList, Correlation::class.java)
         }
         update.set("instanceList", instanceObject.instanceList)
         update.set("status", if (instanceObject.status == "2") "2" else flag)
         mongoTemplate.updateFirst(query, update, instanceObject::class.java)
         return Result(0)
+    }
+
+    fun deleteCorrelation(id: String) {
+        // 找出已绑定的实体类，全部移除
+        val queryCorrelation = Query()
+        queryCorrelation.addCriteria(Criteria.where("objectId").`is`(id))
+//        val res = mongoTemplate.find(queryCorrelation, Correlation::class.java)
+        mongoTemplate.remove(queryCorrelation, Correlation::class.java)
     }
 
     @ApiOperation("根据条件分页查询文本内容")
@@ -68,4 +87,15 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         val page = PageImpl<InstanceObject>(res, pageable, count)
         return Result<PageImpl<InstanceObject>?>(0).setData(page)
     }
+
+//    @ApiOperation("修改实例id")
+//    @GetMapping("updateInstanceId")
+//    fun updateInstanceId() {
+//        val res = mongoTemplate.findAll(InstanceObject::class.java)
+//        mongoTemplate.dropCollection("instance_object")
+//        res.map {
+//            it.id = null
+//            mongoTemplate.insert(it,"instance_object")
+//        }
+//    }
 }
