@@ -80,7 +80,10 @@ class InstanceController(val mongoTemplate: MongoTemplate) {
         res.map { annotation ->
             annotation.annotationList?.map {
                 val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
-                it.entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)!!.label
+                val entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)
+                if (entity != null) {
+                    it.entity = entity.label
+                }
             }
         }
         val count = mongoTemplate.count(query, InstanceObject::class.java)
