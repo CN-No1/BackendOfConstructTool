@@ -30,6 +30,16 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         query.addCriteria(Criteria.where("treeId").`is`(treeId))
         val res = mongoTemplate.find(
                 query, EntityClass::class.java)
+        val correlationList = mongoTemplate.findAll(Correlation::class.java)
+        res.map {
+            var count = 0
+            correlationList.map { correlation ->
+                if (it.id == correlation.entityId) {
+                    count += 1
+                }
+            }
+            it.useTimes = count
+        }
         return Result<ArrayList<EntityClass>?>(0).setData(ArrayList(res))
     }
 
@@ -216,7 +226,7 @@ class EntityController(val mongoTemplate: MongoTemplate) {
     @GetMapping("getBandingList")
     fun getBandingList(entityId: String): Result<ArrayList<CorrelationObject>?> {
         val queryCorrelation = Query.query((Criteria.where("entityId").`is`(entityId)))
-        val entity = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(entityId)),EntityClass::class.java)
+        val entity = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(entityId)), EntityClass::class.java)
         val queryTreeType = Query.query((Criteria.where("id").`is`(entity!!.treeId)))
         val treeType = mongoTemplate.findOne(queryTreeType, Tree::class.java)!!.treeType
         val queryRes = mongoTemplate.find(queryCorrelation, Correlation::class.java)
@@ -228,23 +238,27 @@ class EntityController(val mongoTemplate: MongoTemplate) {
         }
         val correlationObjectList = arrayListOf<CorrelationObject>()
         if (treeType == "0" || treeType == "1") {
+            val nluList = mongoTemplate.findAll(NLUEntity::class.java)
             idList.map {
-                val nluEntity = mongoTemplate.findOne(
-                        Query.query(Criteria.where("id").`is`(it)), NLUEntity::class.java)
-                if (nluEntity != null) {
-                    val correlationObject = CorrelationObject(nluEntity.id!!, nluEntity.content, nluEntity.hashCode)
-                    correlationObjectList.add(correlationObject)
+                nluList.map { entity ->
+                    if (entity.id == it) {
+                        val correlationObject = CorrelationObject(entity.id, entity.content, entity.hashCode)
+                        correlationObjectList.add(correlationObject)
+                    }
                 }
+
             }
             return Result<ArrayList<CorrelationObject>?>(0).setData(correlationObjectList)
         } else {
-            queryRes.map {
-                val instanceObject = mongoTemplate.findOne(
-                        Query.query(Criteria.where("id").`is`(it.objectId)), InstanceObject::class.java)
-                if (instanceObject != null) {
-                    val correlationObject = CorrelationObject(instanceObject.id!!, instanceObject.text, instanceObject.hashCode)
-                    correlationObjectList.add(correlationObject)
+            val instanceList = mongoTemplate.findAll(InstanceObject::class.java)
+            idList.map {
+                instanceList.map { instance ->
+                    if (instance.id == it) {
+                        val correlationObject = CorrelationObject(instance.id, instance.text, instance.hashCode)
+                        correlationObjectList.add(correlationObject)
+                    }
                 }
+
             }
             return Result<ArrayList<CorrelationObject>?>(0).setData(correlationObjectList)
         }

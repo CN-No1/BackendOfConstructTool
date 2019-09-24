@@ -1,6 +1,6 @@
 package com.aegis.kotlindemo.model.dataOutput
 
-data class DataOutputModel(val id: String, val text: String)
+data class DataOutputModel(val id: String, val text: String, val annotationList: ArrayList<Annotation>, val intention: ArrayList<String>)
 
 data class InstanceOutputModel(val text: String, val instanceList: ArrayList<Instance>, val annotationList: ArrayList<Annotation>)
 

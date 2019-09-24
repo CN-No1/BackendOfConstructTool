@@ -62,7 +62,17 @@ class DataOutput(val mongoTemplate: MongoTemplate) {
         val instanceList = mongoTemplate.findAll(NLUEntity::class.java)
         val outputList = arrayListOf<DataOutputModel>()
         instanceList.map {
-            val data = it.id?.let { it1 -> DataOutputModel(it1, it.content) }
+            val annotationList = ArrayList<Annotation>()
+            val intentionList = ArrayList<String>()
+            it.annotationList.map {
+                val entity = mongoTemplate.findOne(Query.query(Criteria.where("id").`is`(it.entityId)), EntityClass::class.java)!!.label
+                val annotation = Annotation(entity, it.value, it.startOffset, it.endOffset)
+                annotationList.add(annotation)
+            }
+            it.intention!!.map {
+                intentionList.add(it.label)
+            }
+            val data = it.id?.let { it1 -> DataOutputModel(it1, it.content, annotationList, intentionList) }
             if (data != null) {
                 outputList.add(data)
             }

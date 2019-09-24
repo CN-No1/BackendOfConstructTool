@@ -13,6 +13,7 @@ import com.aegis.kotlindemo.model.result.Result
 import com.google.gson.JsonParser
 import io.swagger.annotations.ApiOperation
 import org.bson.types.ObjectId
+import org.jetbrains.annotations.Nls
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import org.springframework.data.mongodb.core.MongoTemplate
@@ -36,28 +37,56 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
 
     @ApiOperation("根据条件分页查询文本内容")
     @GetMapping("getDocByParam")
-    fun getDocByParam(moduleId: String?, status: String?, purpose: String?, docContent: String?, hashCode: Int?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
+    fun getDocByParam(moduleId: String?, status: String?, purpose: String?, docContent: String?, queryType: String?, hashCode: Int?, pageable: Pageable): Result<PageImpl<NLUEntity>?> {
         val criteria = Criteria()
         if (!moduleId.isNullOrBlank()) criteria.and("moduleId").`is`(moduleId)
         if (!status.isNullOrBlank()) criteria.and("status").`is`(status)
         if (!purpose.isNullOrBlank()) criteria.and("purpose").`is`(purpose)
         if (!docContent.isNullOrBlank()) {
-            val pattern = Pattern.compile("^.*$docContent.*$", CASE_INSENSITIVE)
-            criteria.and("content").regex(pattern)
+            if (queryType == "1") {
+                val pattern = Pattern.compile("^.*$docContent.*$", CASE_INSENSITIVE)
+                criteria.and("content").regex(pattern)
+            } else {
+                val entity = mongoTemplate.findOne(Query.query(Criteria.where("label").`is`(docContent)), EntityClass::class.java)
+                if (entity != null) {
+                    val queryCorrelation = Query.query((Criteria.where("entityId").`is`(entity.id)))
+                    val queryRes = mongoTemplate.find(queryCorrelation, Correlation::class.java)
+                    val idList = ArrayList<String>()
+                    queryRes.map {
+                        if (!idList.contains(it.objectId)) {
+                            idList.add(it.objectId)
+                        }
+                    }
+                    val nluList = mongoTemplate.findAll(NLUEntity::class.java)
+                    val res = ArrayList<NLUEntity>()
+                    nluList.map {
+                        idList.map { id ->
+                            if (it.id == id) {
+                                res.add(it)
+                            }
+                        }
+                    }
+                    val currentPage = pageable.pageNumber
+                    val pageSize = pageable.pageSize
+                    val pageRes = res.subList(currentPage * pageSize, (currentPage + 1) * pageSize)
+                    val count = res.size
+                    val page = PageImpl(pageRes, pageable, count.toLong())
+                    return Result<PageImpl<NLUEntity>?>(0).setData(page)
+                } else {
+                    return Result<PageImpl<NLUEntity>?>(500, "未查询到相关实体")
+                }
+            }
         }
         if (hashCode != 0) criteria.and("hashCode").`is`(hashCode)
         val query = Query.query(criteria).with(pageable)
         val res = mongoTemplate.find(query, NLUEntity::class.java)
-        for (item in res) {
-            item.moduleName = mongoTemplate.findOne(
-                    Query.query(Criteria.where("_id").`is`(item.moduleId)), Module::class.java)!!.name
-        }
         res.map { annotation ->
+            val entityList = mongoTemplate.findAll(EntityClass::class.java)
             annotation.annotationList.map {
-                val queryEntity = Query.query(Criteria.where("id").`is`(it.entityId))
-                val entity = mongoTemplate.findOne(queryEntity, EntityClass::class.java)
-                if (entity != null) {
-                    it.entity = entity.label
+                entityList.map { entityClass ->
+                    if (entityClass.id == it.entityId) {
+                        it.entity = entityClass.label
+                    }
                 }
             }
         }
