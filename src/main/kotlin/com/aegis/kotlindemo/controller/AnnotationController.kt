@@ -68,7 +68,11 @@ class AnnotationController(val mongoTemplate: MongoTemplate) {
                     }
                     val currentPage = pageable.pageNumber
                     val pageSize = pageable.pageSize
-                    val pageRes = res.subList(currentPage * pageSize, (currentPage + 1) * pageSize)
+                    var end = (currentPage + 1) * pageSize - 1
+                    if ((currentPage + 1) * pageSize > res.size) {
+                        end = res.size
+                    }
+                    val pageRes = res.subList(currentPage * pageSize, end)
                     val count = res.size
                     val page = PageImpl(pageRes, pageable, count.toLong())
                     return Result<PageImpl<NLUEntity>?>(0).setData(page)
